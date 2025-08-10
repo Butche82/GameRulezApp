@@ -1,8 +1,8 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { fetchBGGCollection, discoverRulebookLinks } from "@/lib/sources";
-import { indexPdfForGame, resetIndex, gamesDb } from "@/lib/vector";
+import { fetchBGGCollection, discoverRulebookLinks } from "../../../lib/sources";
+import { indexPdfForGame, resetIndex, gamesDb } from "../../../lib/vector";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();

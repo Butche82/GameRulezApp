@@ -1,21 +1,24 @@
 import { createHash } from "crypto";
-import { fetchPdf, extractTextByPage } from "@/lib/pdf";
-import { ALLOWLIST } from "@/lib/sources";
+import { fetchPdf, extractTextByPage } from "./pdf";
+import { ALLOWLIST } from "./sources";
+import OpenAI from "openai";
 
-// Minimal in-memory store for demo
 export const gamesDb: Record<string, { id: string; title: string; fileCount: number }> = {};
-
 export type Row = { game_id:string; game_title:string; source_url:string; page:number; text:string; doc_hash:string };
 let rows: Row[] = [];
 let vectors: Float32Array[] = [];
 
-// Tiny embedder using OpenAI text-embedding-3-small (or fallback to hash-vec for demo)
-import OpenAI from "openai";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+function chunk(text: string, max=1000, overlap=150) {
+  const clean = text.replace(/\s+/g, " ").trim();
+  const out: string[] = []; let i=0; while (i<clean.length){ out.push(clean.slice(i,i+max)); i+= max-overlap; }
+  return out;
+}
 
 async function embed(texts: string[]): Promise<Float32Array[]> {
   if (!process.env.OPENAI_API_KEY) {
-    // cheap hash-based pseudo-embeddings so it "works" without a key (bad quality, demo only)
+    // cheap hash-based pseudo-embeddings to avoid hard fail (demo only)
     return texts.map(t => {
       const h = createHash("sha1").update(t).digest();
       const vec = new Float32Array(256);
@@ -27,18 +30,12 @@ async function embed(texts: string[]): Promise<Float32Array[]> {
   return res.data.map(d => Float32Array.from(d.embedding));
 }
 
-export function resetIndex(){ rows = []; vectors = []; }
-
 function cosineSim(a: Float32Array, b: Float32Array) {
   let dot=0, na=0, nb=0; for (let i=0;i<a.length;i++){ dot+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; }
   return dot / (Math.sqrt(na)*Math.sqrt(nb) + 1e-8);
 }
 
-function chunk(text: string, max=1000, overlap=150) {
-  const clean = text.replace(/\s+/g, " ").trim();
-  const out: string[] = []; let i=0; while (i<clean.length){ out.push(clean.slice(i,i+max)); i+= max-overlap; }
-  return out;
-}
+export function resetIndex(){ rows = []; vectors = []; }
 
 export async function indexPdfForGame(gameId:string, title:string, url:string): Promise<boolean> {
   try {
@@ -77,7 +74,7 @@ export async function retrieveAndAnswer(opts: { query:string; gameFilter?:string
 
   if (!scored.length) {
     if (strict) return { answer: "I couldn't find anything relevant in your indexed rulebooks for that query.", citations: [] };
-    if (allowInterpretation) return { answer: "No direct cites found; here’s a reasonable ruling based on common patterns and similar games: … (treat as advisory)", citations: [] };
+    if (allowInterpretation) return { answer: "No direct cites found; here’s a reasonable ruling based on common patterns and similar games: … (advisory)", citations: [] };
     return { answer: "No matching sources.", citations: [] };
   }
 
@@ -93,7 +90,7 @@ export async function retrieveAndAnswer(opts: { query:string; gameFilter?:string
   }
   let answer = `Based on your indexed rulebooks, here are the most relevant passages (with pages):\n\n${snippets.join("\n")}`;
   if (!strict && allowInterpretation) {
-    answer += "\n\nInterpretation: Given the above, a fair edge-case ruling would be … (marking this as advisory).";
+    answer += "\n\nInterpretation: Given the above, a fair edge-case ruling would be … (advisory).";
   }
   return { answer, citations };
 }

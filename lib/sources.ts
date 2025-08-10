@@ -1,4 +1,3 @@
-import fetch from "node-fetch"; // v2
 import * as cheerio from "cheerio";
 
 const USER_AGENT = process.env.RA_UA || "RulesAssistantBot/1.0 (+contact: local)";
@@ -14,6 +13,7 @@ export const ALLOWLIST = (process.env.RA_PUBLISHER_ALLOWLIST || [
 export async function fetchBGGCollection(username: string): Promise<{id: string, title: string}[]> {
   const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(username)}&own=1&excludesubtype=boardgameexpansion`;
   const r = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  if (!r.ok) return [];
   const xml = await r.text();
   const $ = cheerio.load(xml, { xmlMode: true });
   const items: {id:string, title:string}[] = [];
@@ -39,6 +39,7 @@ export async function discoverRulebookLinks(gameTitle: string): Promise<string[]
   const q = encodeURIComponent(`${gameTitle} official rulebook pdf`);
   const url = `https://duckduckgo.com/html/?q=${q}`;
   const r = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  if (!r.ok) return [];
   const html = await r.text();
   const $ = cheerio.load(html);
   const out: string[] = [];

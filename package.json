@@ -1,7 +1,14 @@
 {
   "name": "rules-assistant",
   "private": true,
-  "scripts": { "dev": "next dev", "build": "next build", "start": "next start" },
+  {
+  "scripts": {
+    "prebuild": "node -e \"require('child_process').execSync('pwd && ls -R', {stdio:'inherit'})\"",
+    "build": "next build",
+    "start": "next start",
+    "dev": "next dev"
+  }
+}
   "dependencies": {
     "cheerio": "^1.0.0",
     "next": "14.2.5",
